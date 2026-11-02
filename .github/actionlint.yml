@@ -1,0 +1,6 @@
+# actionlint configuration shared by pre-commit (auto-discovered) and
+# Super-Linter (GITHUB_ACTIONS_CONFIG_FILE).
+self-hosted-runner:
+  # GitHub-hosted labels newer than the pinned actionlint release.
+  labels:
+    - ubuntu-26.04

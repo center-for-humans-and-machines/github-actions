@@ -1,0 +1,17 @@
+---
+# yamllint configuration shared by pre-commit and Super-Linter
+# (YAML_CONFIG_FILE). Tuned to agree with Prettier's YAML output.
+# https://yamllint.readthedocs.io/en/stable/configuration.html
+extends: default
+
+rules:
+  # Prettier owns line wrapping.
+  line-length: disable
+  # Prettier puts a single space before inline comments.
+  comments:
+    min-spaces-from-content: 1
+  # Most files in this repo omit the leading `---`.
+  document-start: disable
+  # GitHub Actions uses `on:` as a key.
+  truthy:
+    check-keys: false

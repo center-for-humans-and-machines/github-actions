@@ -1,0 +1,16 @@
+# Single source of truth for whitespace and indentation.
+# Read by editors and editorconfig-checker (pre-commit and Super-Linter).
+# https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# Ordered-list continuation lines use 3 spaces.
+indent_size = unset

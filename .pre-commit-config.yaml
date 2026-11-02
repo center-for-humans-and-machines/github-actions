@@ -1,0 +1,59 @@
+# Hooks marked "Super-Linter: X" mirror the VALIDATE_X allowlist in
+# .github/super-linter.env and read the same config files.
+#
+# Setup:  pre-commit install
+# Run:    pre-commit run --all-files
+minimum_pre_commit_version: "4.0.0"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict # Super-Linter: GIT_MERGE_CONFLICT_MARKERS
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # Super-Linter: EDITORCONFIG
+  - repo: https://github.com/editorconfig-checker/editorconfig-checker
+    rev: v4.0.2
+    hooks:
+      - id: editorconfig-checker
+
+  # Super-Linter: GITLEAKS
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # Super-Linter: GITHUB_ACTIONS, GITHUB_ACTIONS_ZIZMOR
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.30.1
+    hooks:
+      - id: zizmor
+
+  # Super-Linter: YAML
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [--config-file=.yamllint.yml]
+
+  # Super-Linter: MARKDOWN
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.49.1
+    hooks:
+      - id: markdownlint
+        args: [--config=.markdownlint.yml]
+
+  # Super-Linter: MARKDOWN_PRETTIER, YAML_PRETTIER
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.9.8
+    hooks:
+      - id: prettier
+        types_or: [markdown, yaml]

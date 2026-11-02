@@ -1,0 +1,244 @@
+name: Deploy with Helm
+description: Deploy an application to Kubernetes with a Helm chart
+
+inputs:
+  app-name:
+    description: Helm release and application name
+    required: true
+  image-name:
+    description: Docker image name with tag or digest
+    required: true
+  main-url:
+    description: Host name used by the chart's Ingress (empty for charts without one, such as workers)
+    required: false
+    default: ""
+  chart-dir:
+    description: Path to the Helm chart
+    required: false
+    default: kubernetes/web-service
+  values-file:
+    description: Values file applied after the chart's values.yaml (empty for none)
+    required: false
+    default: ""
+  web-port:
+    description: Container port (empty keeps the chart's value)
+    required: false
+    default: ""
+  environment:
+    description: Environment label and Portainer stack suffix, such as dev or main (empty for none)
+    required: false
+    default: ""
+  namespace:
+    description: Kubernetes namespace
+    required: true
+  replica-count:
+    description: Number of replicas (empty keeps the chart's value)
+    required: false
+    default: ""
+  cpu-request:
+    description: CPU request (empty keeps the chart's value)
+    required: false
+    default: ""
+  cpu-limit:
+    description: CPU limit (empty keeps the chart's value)
+    required: false
+    default: ""
+  memory-request:
+    description: Memory request (empty keeps the chart's value)
+    required: false
+    default: ""
+  memory-limit:
+    description: Memory limit (empty keeps the chart's value)
+    required: false
+    default: ""
+  timeout:
+    description: How long Helm waits for the release to become ready before rolling it back
+    required: false
+    default: 5m
+  deployment-vars:
+    description: Path to deployment variables YAML file
+    required: false
+    default: /tmp/deployment_vars.yml
+  kubeconfig:
+    description: Base64 encoded kubeconfig
+    required: true
+  dockercfg:
+    description: Base64 encoded Docker config JSON
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure Kubernetes access
+      shell: bash
+      env:
+        KUBECONFIG_INPUT: ${{ inputs.kubeconfig }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${KUBECONFIG_INPUT}" ]]; then
+          echo "KUBECONFIG input is empty. Check the KUBECONFIG secret." >&2
+          exit 1
+        fi
+
+        # Support both base64-encoded kubeconfig and raw YAML kubeconfig.
+        if ! printf "%s" "${KUBECONFIG_INPUT}" | base64 -d > kubeconfig 2>/dev/null; then
+          printf "%s" "${KUBECONFIG_INPUT}" > kubeconfig
+        fi
+
+        if [[ ! -s kubeconfig ]]; then
+          echo "Generated kubeconfig file is empty." >&2
+          exit 1
+        fi
+
+        if ! grep -q '^apiVersion:' kubeconfig; then
+          echo "Generated kubeconfig does not look valid (missing apiVersion)." >&2
+          exit 1
+        fi
+
+        if grep -Eq 'server:[[:space:]]*https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:[0-9]+)?([[:space:]]|$)' kubeconfig; then
+          echo "Kubeconfig points to localhost. Check KUBECONFIG cluster server." >&2
+          exit 1
+        fi
+
+        chmod 400 kubeconfig
+
+    # The releases were installed with Helm 3; moving to Helm 4 is a separate
+    # change.
+    - name: Install Helm
+      uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      with:
+        version: v3.22.1
+
+    - name: Check the chart
+      shell: bash
+      env:
+        CHART_DIR: ${{ inputs.chart-dir }}
+        VALUES_FILE: ${{ inputs.values-file }}
+      run: |
+        set -euo pipefail
+
+        required_files=("${CHART_DIR}/Chart.yaml" "${CHART_DIR}/values.yaml")
+        if [[ -n "${VALUES_FILE}" ]]; then
+          required_files+=("${VALUES_FILE}")
+        fi
+
+        for file in "${required_files[@]}"; do
+          if [[ ! -f "$file" ]]; then
+            echo "Error: required file not found: $file" >&2
+            exit 1
+          fi
+        done
+
+    # A deploy that died mid-upgrade leaves the release in a pending-* state,
+    # and every later upgrade then fails with "another operation is in
+    # progress". Stop early and say how to fix it.
+    - name: Check for an unfinished release
+      shell: bash
+      env:
+        APP_NAME: ${{ inputs.app-name }}
+        NAMESPACE: ${{ inputs.namespace }}
+      run: |
+        set -euo pipefail
+
+        # Helm lists the release only while it is pending-install,
+        # pending-upgrade or pending-rollback. A cluster error stops here.
+        list_pending=(helm list --namespace "${NAMESPACE}" --kubeconfig kubeconfig
+          --pending --filter "^${APP_NAME}\$")
+        pending="$("${list_pending[@]}" --short)"
+        if [[ -z "${pending}" ]]; then
+          echo "Release ${APP_NAME} has no unfinished operation."
+          exit 0
+        fi
+
+        {
+          echo "Release ${APP_NAME} is stuck: a previous deploy did not finish."
+          "${list_pending[@]}"
+          echo "Find the last deployed revision:"
+          echo "  helm history ${APP_NAME} --namespace ${NAMESPACE}"
+          echo "Roll back to it, then run this workflow again:"
+          echo "  helm rollback ${APP_NAME} <revision> --namespace ${NAMESPACE} --wait"
+        } >&2
+        exit 1
+
+    - name: Deploy with Helm
+      shell: bash
+      env:
+        APP_NAME: ${{ inputs.app-name }}
+        IMAGE_NAME: ${{ inputs.image-name }}
+        MAIN_URL: ${{ inputs.main-url }}
+        CHART_DIR: ${{ inputs.chart-dir }}
+        VALUES_FILE: ${{ inputs.values-file }}
+        WEB_PORT: ${{ inputs.web-port }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        NAMESPACE: ${{ inputs.namespace }}
+        REPLICA_COUNT: ${{ inputs.replica-count }}
+        CPU_REQUEST: ${{ inputs.cpu-request }}
+        CPU_LIMIT: ${{ inputs.cpu-limit }}
+        MEMORY_REQUEST: ${{ inputs.memory-request }}
+        MEMORY_LIMIT: ${{ inputs.memory-limit }}
+        TIMEOUT: ${{ inputs.timeout }}
+        DEPLOYMENT_VARS: ${{ inputs.deployment-vars }}
+        DOCKERCFG: ${{ inputs.dockercfg }}
+      run: |
+        set -euo pipefail
+
+        helm_args=(
+          --set "app_name=${APP_NAME}"
+          --set "app_image=${IMAGE_NAME}"
+          --set-string "dockersecret=${DOCKERCFG}"
+        )
+
+        # An empty input keeps the chart's own value.
+        set_if_given() {
+          if [[ -n "$2" ]]; then
+            helm_args+=(--set "$1=$2")
+          fi
+        }
+        set_if_given main_url "${MAIN_URL}"
+        set_if_given environment "${ENVIRONMENT}"
+        set_if_given web_port "${WEB_PORT}"
+        set_if_given replica_count "${REPLICA_COUNT}"
+        set_if_given resources.requests.cpu "${CPU_REQUEST}"
+        set_if_given resources.limits.cpu "${CPU_LIMIT}"
+        set_if_given resources.requests.memory "${MEMORY_REQUEST}"
+        set_if_given resources.limits.memory "${MEMORY_LIMIT}"
+
+        if [[ -n "${VALUES_FILE}" ]]; then
+          helm_args+=(--values "${VALUES_FILE}")
+        fi
+
+        if [[ -n "${DEPLOYMENT_VARS}" && -f "${DEPLOYMENT_VARS}" ]]; then
+          helm_args+=(--values "${DEPLOYMENT_VARS}")
+        fi
+
+        helm upgrade \
+          --install \
+          --namespace "${NAMESPACE}" \
+          --create-namespace \
+          "${APP_NAME}" \
+          "${CHART_DIR}" \
+          "${helm_args[@]}" \
+          --atomic \
+          --timeout "${TIMEOUT}" \
+          --kubeconfig kubeconfig
+
+    - name: Output deployment summary
+      shell: bash
+      env:
+        APP_NAME: ${{ inputs.app-name }}
+        IMAGE_NAME: ${{ inputs.image-name }}
+        MAIN_URL: ${{ inputs.main-url }}
+      run: |
+        set -euo pipefail
+
+        {
+          echo "### ${APP_NAME} deployment"
+          echo
+          echo "- Status: success"
+          echo "- Docker image: \`${IMAGE_NAME}\`"
+          if [[ -n "${MAIN_URL}" ]]; then
+            echo "- URL: https://${MAIN_URL}"
+          fi
+          echo
+        } >> "$GITHUB_STEP_SUMMARY"

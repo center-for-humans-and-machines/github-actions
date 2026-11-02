@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # "/" covers .github/workflows; "/*" covers each action's action.yml.
+  - package-ecosystem: "github-actions"
+    directories: ["/", "/*"]
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
