@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-02
+
+### Added
+
+- `setup-poetry`: set up Python and Poetry and restore the cached
+  virtualenv, moved from `hcms`. The cache key includes the workspace
+  path, so a self-hosted runner never restores a virtualenv built in
+  another runner's directory.
+
 ## [1.0.0] - 2026-11-02
 
 ### Added
@@ -15,5 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `elderbot-android-app`. `main-url` is optional for charts without an
   Ingress, and `namespace` no longer has a default.
 
-[Unreleased]: https://github.com/center-for-humans-and-machines/github-actions/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/center-for-humans-and-machines/github-actions/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/center-for-humans-and-machines/github-actions/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/center-for-humans-and-machines/github-actions/releases/tag/v1.0.0

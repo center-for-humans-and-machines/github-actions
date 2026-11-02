@@ -1,0 +1,47 @@
+name: Set up Poetry
+description: Set up Python, install Poetry and restore the cached virtualenv
+
+inputs:
+  python-version:
+    description: Python version to set up
+    required: false
+    default: "3.14"
+  poetry-version:
+    description: Poetry version to install
+    required: false
+    default: 2.1.2
+
+outputs:
+  cache-hit:
+    description: Whether the virtualenv was restored from the cache
+    value: ${{ steps.cached-poetry-dependencies.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install poetry
+      shell: bash
+      env:
+        POETRY_VERSION: ${{ inputs.poetry-version }}
+      run: python -m pip install "poetry==${POETRY_VERSION}"
+
+    - name: Configure poetry
+      shell: bash
+      run: python -m poetry config virtualenvs.in-project true
+
+    # A virtualenv stores absolute paths (the interpreter, script shebangs),
+    # so it only works in the directory it was built in. Self-hosted runners
+    # each check out into their own actions-runner-N/_work directory, so the
+    # key includes the workspace path; GitHub-hosted runners all share one
+    # path and one cache.
+    - name: Set up cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: cached-poetry-dependencies
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ github.workspace }}-${{ inputs.python-version }}-${{ hashFiles('**/poetry.lock') }}

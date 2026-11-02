@@ -3,9 +3,10 @@
 Shared GitHub Actions for the Center for Humans and Machines repositories.
 Fix a step once here instead of in every repository.
 
-| Action                       | Purpose                           |
-| ---------------------------- | --------------------------------- |
-| [`deploy-helm`](deploy-helm) | Deploy a Helm chart to Kubernetes |
+| Action                         | Purpose                                                 |
+| ------------------------------ | ------------------------------------------------------- |
+| [`deploy-helm`](deploy-helm)   | Deploy a Helm chart to Kubernetes                       |
+| [`setup-poetry`](setup-poetry) | Set up Python and Poetry, restore the cached virtualenv |
 
 ## Usage
 
