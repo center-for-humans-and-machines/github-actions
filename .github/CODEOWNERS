@@ -1,2 +1,9 @@
+# .github/CODEOWNERS
+#
 # Every change here reaches all repositories that use these actions.
-* @rodrigobdz @alidasmeh
+#
+# One reviewer per PR. GitHub never requests the PR author, so on a
+# "@rodrigobdz @chaee" line Rodrigo's PRs go to Chaewon and Chaewon's
+# to Rodrigo. Do not list more than these two people on one line.
+
+* @rodrigobdz @chaee
