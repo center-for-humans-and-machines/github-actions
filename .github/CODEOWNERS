@@ -1,2 +1,9 @@
+# .github/CODEOWNERS
+#
 # Every change here reaches all repositories that use these actions.
-* @rodrigobdz @alidasmeh
+#
+# One reviewer for PRs that Rodrigo or Chaewon opens: GitHub never requests
+# the PR author, so Rodrigo's PRs go to Chaewon and Chaewon's to Rodrigo.
+# PRs from anyone else, Dependabot included, request both.
+
+* @rodrigobdz @chaee
